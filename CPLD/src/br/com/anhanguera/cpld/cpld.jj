@@ -1,0 +1,162 @@
+options
+{
+  STATIC = false;
+  DEBUG_LOOKAHEAD = false;
+}
+
+PARSER_BEGIN(Leitor)
+package br.com.anhanguera.cpld;
+import java.io.*;
+import java.util.*;
+import javax.swing.JOptionPane;
+
+public class Leitor
+{
+  boolean Menosshort = false; //Saida resumida falso
+
+  public void processa() throws Exception
+  {
+    Token t = new Token();
+    do
+    {
+      t = getNextToken(); //Obtém o próximo token
+      String nomeToken = tokenImage [t.kind]; //guarda o nome do token na string
+    }
+    while (t.kind != 0); //condicao de parada: final do arquivo (constante eof 0 )
+  }
+
+  public static void main(String args [], String x) throws ParseException, FileNotFoundException
+  {
+    try
+    {
+    }
+    catch (Error e)
+    {
+      System.out.println(e.getMessage()); //Mensagem de erro léxico (em ingles) mostrando linha e coluna
+    }
+  }
+}
+
+PARSER_END(Leitor)
+
+/* ESPECIFICAÇÃO DO ANALISADOR LÉXICO */
+
+TOKEN_MGR_DECLS :
+{
+  int countLexError = 0;
+
+  public int foundLexError()
+  {
+    return countLexError;
+  }
+}
+
+SKIP : // TOKENS IGNORADOS
+{
+  " "
+| "\r"
+| "\t"
+| "\n"
+| < COMENTARIO : "//" (< COM >)* >
+| < COMENTARIOS :
+    "/*"
+    (
+      "\n"
+    | "\r"
+    | < COM >
+    )*
+    "*/" >
+| < #COM :
+    (
+      ~[ "\"", "\\", "\n", "\r" ]
+    | "\\"
+      (
+        [ "n", "t", "b", "r", "f", "\\", "\'", "\"" ]
+      |
+        (
+          [ "\n", "\r" ]
+        | "\r\n"
+        )
+      )
+    )* >
+}
+
+TOKEN : //PALAVRAS RESERVADAS
+{
+  < INICIO_PROGRAMA : "INICIO_PROGRAMA" > {System.out.println("Palavra Reservada: " + image);}
+| < AP: "(" > { System.out.println("Abre Parenteses: " + image) ;}
+| < FP: ")" > { System.out.println("Fecha Parenteses: " + image) ;}
+| < AC: " { " > { System.out.println("Abre Chave: " + image) ;}
+| < FC: " }" > { System.out.println("Fecha Chave: " + image) ;}
+|  < SE : "SE" > { System.out.println("Palavra Reservada: " + image); }
+|  < SENAO : "SENAO" > { System.out.println("Palavra Reservada: " + image); } 
+|  < SENAO_SE : "SENAO_SE" > { System.out.println("Palavra Reservada: " + image); }
+|  < PALAVRA : "PALAVRA" > { System.out.println("Tipo: " + image); }
+|  < LOGICO : "LOGICO" > { System.out.println("Tipo: " + image); }
+|  < IDENTIFICADOR : (["A"-"Z", "a"-"z"]) > { System.out.println("Identificador: " + image); }
+|  < FIM_PROGRAMA : "FIM_PROGRAMA" > { System.out.println("Palavra Reservada: " + image); }
+}
+
+SPECIAL_TOKEN :
+{
+  < NAO_IDENTIFICADO :
+    (
+      ("@")* ([ "a"-"z", "A"-"Z", "0"-"9" ])* ("@")*
+    )* >
+  {
+    System.err.println("Linha " + input_stream.getEndLine() + " Coluna " + input_stream.getEndColumn() + " Caractere invalido encontrado: " + image);
+    countLexError++;
+    System.out.println("Erro Lexico --------> " + image);
+  }
+| 
+  < INVALIDO_LEXICO : 
+    (~[ "a"-"z", 
+    "A"-"Z", 
+    "0"-"9", 
+    "\"", 
+    "(", 
+    ")", 
+    "[", 
+    "]", 
+    "{", 
+    "}", 
+    ";", 
+    ",", 
+    ".", 
+    "=", 
+    ">", 
+    "<", 
+    "!", 
+    "+", 
+    "-", 
+    "*", 
+    "/", 
+    "%", 
+    " ", 
+    "\t", 
+    "\n", 
+    "\r", 
+    "\f" 
+    ])+ >
+  {
+    System.err.println("Linha " + input_stream.getEndLine() + " Coluna " + input_stream.getEndColumn() + " Caractere invalido encontrado: " + image + "TOTAL ERRO " + countLexError);
+    countLexError++;
+    System.out.println("Erro Lexico --------> " + image);
+  }
+| 
+  < INVALID_CONST : 
+    "\"" (~[ "\n", "\r", "\"" ])* [ "\n", "\r" ] >
+  {
+    System.err.println("Linha " + input_stream.getEndLine() + " Coluna " + input_stream.getEndColumn() + " Caractere invalido encontrado \\n: " + image + " Era esperado uma aspa");
+    countLexError++;
+    System.out.println("Erro Lexico --------> " + image);
+  }
+}
+
+// GRAMATICA DA LINGUAGEM A SER RECONHECIDA
+void INIT(): { } { programa() }
+void programa(): { } { <INICIO_PROGRAMA> <IDENTIFICADOR> <AP> < FP > <AC> [linha()] <FC> }
+void linha() : { } { linhas() [linha()] }
+void linhas() : { } { criar_variaveis() }
+void criar_variaveis() : { } { tipo() <IDENTIFICADOR> }
+void tipo() : { } { <PALAVRA> | <LOGICO> } 
